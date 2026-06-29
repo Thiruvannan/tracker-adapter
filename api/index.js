@@ -1,38 +1,31 @@
 const https = require('https');
 
 module.exports = async (req, res) => {
-    // 1. Handle Capabilities (The Handshake)
+    // 1. Handshake
     if (req.url.includes('t=caps')) {
         res.writeHead(200, { 'Content-Type': 'application/xml' });
         return res.end('<?xml version="1.0" encoding="UTF-8"?><caps><server/><searching><search available="yes"/><tv-search available="yes"/></searching></caps>');
     }
 
-    // 2. Identify the search query
-    const urlParts = req.url.split('?');
-    const params = new URLSearchParams(urlParts[1]);
-    const query = params.get('q');
-    
-    // 3. Setup Request to Nyaa
-    const path = query ? `/search?q=${encodeURIComponent(query)}` : '/';
+    // 2. Map Sonarr request to Nyaa RSS feed
+    // Nyaa RSS: https://nyaa.si/?page=rss&q=Query
+    const url = new URL(req.url, 'https://nyaa.si');
+    const query = url.searchParams.get('q');
+    const targetPath = query ? `/?page=rss&q=${encodeURIComponent(query)}` : '/?page=rss';
+
     const options = {
         hostname: 'nyaa.si',
         port: 443,
-        path: path,
+        path: targetPath,
         method: 'GET',
-        headers: {
-            'Host': 'nyaa.si',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        },
+        headers: { 'User-Agent': 'Mozilla/5.0' },
         rejectUnauthorized: false
     };
 
     const proxyReq = https.request(options, (proxyRes) => {
-        // Force the content type to XML so Sonarr doesn't try to parse HTML
-        res.writeHead(200, { 'Content-Type': 'application/xml' });
-        // Return a dummy XML so Sonarr stops complaining while we bypass the ISP
-        res.end('<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Nyaa Proxy</title></channel></rss>');
+        res.writeHead(200, { 'Content-Type': 'application/rss+xml' });
+        proxyRes.pipe(res);
     });
 
-    proxyReq.on('error', (e) => res.status(500).send(e.message));
     proxyReq.end();
 };
