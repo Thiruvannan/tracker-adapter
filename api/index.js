@@ -1,20 +1,18 @@
 const https = require('https');
 
 module.exports = async (req, res) => {
-    // 1. Handshake
     if (req.url.includes('t=caps')) {
         res.writeHead(200, { 'Content-Type': 'application/xml' });
         return res.end('<?xml version="1.0" encoding="UTF-8"?><caps><server/><searching><search available="yes"/><tv-search available="yes"/></searching></caps>');
     }
 
-    // 2. Map Sonarr request to Nyaa RSS feed
-    // Nyaa RSS: https://nyaa.si/?page=rss&q=Query
-    const url = new URL(req.url, 'https://nyaa.si');
+    const url = new URL(req.url, 'https://dummy.com');
     const query = url.searchParams.get('q');
-    const targetPath = query ? `/?page=rss&q=${encodeURIComponent(query)}` : '/?page=rss';
+    const targetPath = query ? `/search/${encodeURIComponent(query)}/1/` : '/';
+    const host = req.url.includes('1337x') ? '1337x.to' : 'nyaa.si';
 
     const options = {
-        hostname: 'nyaa.si',
+        hostname: host,
         port: 443,
         path: targetPath,
         method: 'GET',
@@ -23,9 +21,11 @@ module.exports = async (req, res) => {
     };
 
     const proxyReq = https.request(options, (proxyRes) => {
-        res.writeHead(200, { 'Content-Type': 'application/rss+xml' });
-        proxyRes.pipe(res);
+        // IMPORTANT: We now pipe the real data instead of sending dummy XML
+        res.writeHead(proxyRes.statusCode, { 'Content-Type': 'application/rss+xml' });
+        proxyRes.pipe(res); 
     });
 
+    proxyReq.on('error', (e) => res.status(500).send(e.message));
     proxyReq.end();
 };
