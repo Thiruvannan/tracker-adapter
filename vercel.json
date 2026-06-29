@@ -1,0 +1,8 @@
+{
+  "routes": [
+    { "src": "/nyaa/(.*)", "dest": "/api/index.js?tracker=nyaa&path=$1" },
+    { "src": "/1337x/(.*)", "dest": "/api/index.js?tracker=1337x&path=$1" },
+    { "src": "/tpb/(.*)", "dest": "/api/index.js?tracker=tpb&path=$1" },
+    { "src": "/limetorrents/(.*)", "dest": "/api/index.js?tracker=limetorrents&path=$1" }
+  ]
+}
